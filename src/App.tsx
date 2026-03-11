@@ -5,6 +5,7 @@ import { WelcomeScreen } from './components/Sidebar/WelcomeScreen'
 import { Editor } from './components/Editor/Editor'
 import { GraphView } from './components/Graph/GraphView'
 import { Breadcrumb } from './components/Breadcrumb/Breadcrumb'
+import { SearchModal } from './components/Search/SearchModal'
 import './styles/global.css'
 
 export default function App() {
@@ -12,28 +13,41 @@ export default function App() {
     vaultPath, setVaultPath, loadNodes,
     activeView, setActiveView,
     sidebarOpen, setSidebarOpen,
-    createNode, navigateTo,
+    searchOpen, setSearchOpen,
   } = useStore()
 
   // On mount, check for stored vault path
   useEffect(() => {
     const init = async () => {
+      console.log('[App] init: calling getPath...')
       const stored = await window.electronAPI.vault.getPath()
+      console.log('[App] stored vaultPath:', stored)
       if (stored) {
         setVaultPath(stored)
+        console.log('[App] calling loadNodes...')
         await loadNodes(stored)
+        console.log('[App] loadNodes complete')
+      } else {
+        console.log('[App] no stored path, showing WelcomeScreen')
       }
     }
-    init()
+    init().catch(err => console.error('[App] init error:', err))
   }, [])
+
+  // Global keyboard shortcut: ⌘K for search
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setSearchOpen(true)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [setSearchOpen])
 
   if (!vaultPath) {
     return <WelcomeScreen />
-  }
-
-  const handleNewNode = async () => {
-    const node = await createNode('Untitled')
-    navigateTo(node.id)
   }
 
   return (
@@ -57,6 +71,19 @@ export default function App() {
           <Breadcrumb />
         </div>
 
+        {/* Search button */}
+        <button
+          className="search-btn titlebar-no-drag"
+          onClick={() => setSearchOpen(true)}
+          title="Search (⌘K)"
+        >
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+            <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" strokeWidth="1.3"/>
+            <path d="M9 9L12 12" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+          </svg>
+          Search
+        </button>
+
         {/* View toggle */}
         <div className="view-toggle titlebar-no-drag">
           <button
@@ -73,10 +100,6 @@ export default function App() {
           </button>
         </div>
 
-        {/* New node */}
-        <button className="new-node-btn titlebar-no-drag" onClick={handleNewNode}>
-          + New node
-        </button>
       </div>
 
       {/* Main area */}
@@ -86,6 +109,9 @@ export default function App() {
           {activeView === 'editor' ? <Editor /> : <GraphView />}
         </div>
       </div>
+
+      {/* Search modal */}
+      {searchOpen && <SearchModal />}
     </div>
   )
 }

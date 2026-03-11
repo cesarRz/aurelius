@@ -1,31 +1,12 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useRef } from 'react'
 import { useStore } from '../../store'
+import { BlockEditor, BlockEditorHandle } from './BlockEditor'
 
 export function Editor() {
-  const { nodes, currentNodeId, updateNodeContent, saveNode } = useStore()
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout>>()
+  const { nodes, currentNodeId, saveNode, updateNodeContent } = useStore()
+  const blockEditorRef = useRef<BlockEditorHandle>(null)
 
   const currentNode = currentNodeId ? nodes.get(currentNodeId) : null
-
-  const debouncedSave = useCallback((node: typeof currentNode) => {
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
-    saveTimerRef.current = setTimeout(() => {
-      if (node) saveNode(node)
-    }, 500)
-  }, [saveNode])
-
-  useEffect(() => {
-    return () => {
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (textareaRef.current && currentNode) {
-      textareaRef.current.value = currentNode.content
-    }
-  }, [currentNodeId])
 
   if (!currentNode) {
     return (
@@ -35,14 +16,29 @@ export function Editor() {
     )
   }
 
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const content = e.target.value
-    updateNodeContent(currentNode.id, content)
-    const updated = { ...currentNode, content, updated: new Date().toISOString() }
-    debouncedSave(updated)
+  const handleTitleKeyDown = (e: React.KeyboardEvent<HTMLHeadingElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      e.currentTarget.blur()
+      blockEditorRef.current?.focusFirst()
+    }
   }
 
-  // Extract backlinks
+  const handleTitleBlur = (e: React.FocusEvent<HTMLHeadingElement>) => {
+    const title = e.currentTarget.textContent?.trim() || 'Untitled'
+    if (title !== currentNode.title) {
+      const updated = { ...currentNode, title, updated: new Date().toISOString() }
+      const updatedNodes = new Map(nodes)
+      updatedNodes.set(currentNode.id, updated)
+      const { navigationStack } = useStore.getState()
+      const updatedStack = navigationStack.map(entry =>
+        entry.nodeId === currentNode.id ? { ...entry, label: title } : entry
+      )
+      useStore.setState({ nodes: updatedNodes, navigationStack: updatedStack })
+      saveNode(updated)
+    }
+  }
+
   const backlinks = currentNode.backlinks
     .map(id => nodes.get(id))
     .filter(Boolean)
@@ -54,23 +50,20 @@ export function Editor() {
           className="editor-title"
           contentEditable
           suppressContentEditableWarning
-          onBlur={(e) => {
-            const title = e.currentTarget.textContent || 'Untitled'
-            const updated = { ...currentNode, title, updated: new Date().toISOString() }
-            updateNodeContent(currentNode.id, currentNode.content)
-            saveNode({ ...updated, content: currentNode.content })
-          }}
+          onKeyDown={handleTitleKeyDown}
+          onBlur={handleTitleBlur}
         >
           {currentNode.title}
         </h1>
       </div>
-      <textarea
-        ref={textareaRef}
-        className="editor-content"
-        defaultValue={currentNode.content}
-        onChange={handleChange}
-        placeholder="Start writing…"
+
+      <BlockEditor
+        key={currentNode.id}
+        ref={blockEditorRef}
+        blocks={currentNode.blocks}
+        nodeId={currentNode.id}
       />
+
       {backlinks.length > 0 && (
         <div className="backlinks-panel">
           <h3 className="backlinks-title">Backlinks</h3>

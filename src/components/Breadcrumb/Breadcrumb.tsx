@@ -1,7 +1,7 @@
 import { useStore } from '../../store'
 
 export function Breadcrumb() {
-  const { navigationStack, nodes, navigateToIndex, navigateBack } = useStore()
+  const { navigationStack, navigateToIndex, navigateBack } = useStore()
 
   return (
     <div className="breadcrumb">
@@ -13,18 +13,16 @@ export function Breadcrumb() {
       >
         ‹
       </button>
-      {navigationStack.map((nodeId, index) => {
-        const node = nodes.get(nodeId)
-        if (!node) return null
+      {navigationStack.map((entry, index) => {
         const isLast = index === navigationStack.length - 1
         return (
-          <span key={nodeId} className="breadcrumb-segment">
+          <span key={`${entry.nodeId}-${index}`} className="breadcrumb-segment">
             {index > 0 && <span className="breadcrumb-separator">/</span>}
             <button
               className={`breadcrumb-item ${isLast ? 'active' : ''}`}
               onClick={() => navigateToIndex(index)}
             >
-              {node.title}
+              {entry.label}
             </button>
           </span>
         )

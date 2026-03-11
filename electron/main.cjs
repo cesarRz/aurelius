@@ -52,8 +52,10 @@ ipcMain.handle('vault:choose', async () => {
 })
 
 ipcMain.handle('vault:read-all', async (_event, vaultPath) => {
+  console.log('[main] vault:read-all called with:', vaultPath)
   try {
     const files = fs.readdirSync(vaultPath).filter(f => f.endsWith('.md'))
+    console.log('[main] found .md files:', files.length, files)
     const nodes = files.map(file => {
       const fullPath = path.join(vaultPath, file)
       const content = fs.readFileSync(fullPath, 'utf-8')
@@ -61,6 +63,7 @@ ipcMain.handle('vault:read-all', async (_event, vaultPath) => {
     })
     return nodes
   } catch (e) {
+    console.error('[main] vault:read-all error:', e.message)
     return []
   }
 })
