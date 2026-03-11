@@ -123,7 +123,6 @@ export const useStore = create<AppState>((set, get) => ({
   navigateTo: (nodeId) => {
     const { navigationStack, currentNodeId } = get()
     if (currentNodeId === nodeId) return
-    // If navigating to something already in stack, trim to that point
     const existingIndex = navigationStack.indexOf(nodeId)
     if (existingIndex >= 0) {
       set({ navigationStack: navigationStack.slice(0, existingIndex + 1), currentNodeId: nodeId })
